@@ -76,3 +76,4 @@ Visit `http://localhost:3000` to access the dashboard.
 ## License
 
 MIT
+# ProofScore
