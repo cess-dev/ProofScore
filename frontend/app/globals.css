@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #0052CC;
+  --secondary: #1E1E1E;
+  --success: #00C853;
+  --warning: #FFB300;
+  --background: #F7F9FB;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--secondary);
+}
