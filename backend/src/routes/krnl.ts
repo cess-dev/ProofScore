@@ -4,6 +4,9 @@
 
 import express, { Request, Response } from 'express';
 import { krnlService } from '../services/krnl';
+import { logger } from '../lib/logger';
+import { config } from '../config';
+import { scoreService } from '../services/score';
 
 export const krnlRouter = express.Router();
 
@@ -81,6 +84,41 @@ krnlRouter.get('/computation/:id', async (req: Request, res: Response) => {
     console.error('Error getting computation status:', error);
     res.status(500).json({
       error: 'Failed to get computation status',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/krnl/webhook
+ * Receive asynchronous score computations
+ */
+krnlRouter.post('/webhook', async (req: Request, res: Response) => {
+  try {
+    if (!config.KRNL_WEBHOOK_SECRET) {
+      return res.status(501).json({ error: 'Webhook not configured' });
+    }
+
+    const signature = req.headers['x-krnl-signature'];
+    if (!signature || signature !== config.KRNL_WEBHOOK_SECRET) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    const { score, chainId } = req.body;
+    if (!score?.walletAddress) {
+      return res.status(400).json({ error: 'Invalid payload: missing score.walletAddress' });
+    }
+
+    const stored = await scoreService.ingestScore(score, chainId);
+
+    res.json({
+      success: true,
+      data: stored,
+    });
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to process KRNL webhook');
+    res.status(500).json({
+      error: 'Failed to process webhook',
       message: error.message,
     });
   }

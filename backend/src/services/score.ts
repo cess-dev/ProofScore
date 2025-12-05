@@ -1,41 +1,39 @@
 /**
  * Score Computation Service
- * Handles reputation score calculation and caching
+ * Handles reputation score calculation, caching and credit decisions
  */
 
-import { ReputationScore, WalletAddress, ScoreBreakdown, RiskFactor } from '../types';
+import { ReputationScore, WalletAddress, ScoreBreakdown } from '../types';
 import { krnlService } from './krnl';
 import { blockchainService } from './blockchain';
+import { prisma } from '../lib/prisma';
+import { config } from '../config';
+import { logger } from '../lib/logger';
+import { creditDecisionEngine } from './credit';
 
-// In-memory cache (in production, use Redis or similar)
-const scoreCache = new Map<string, { score: ReputationScore; expiresAt: number }>();
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = config.SCORE_CACHE_TTL_MINUTES * 60 * 1000;
 
 export class ScoreService {
   /**
    * Get or compute reputation score for a wallet
    */
   async getScore(walletAddress: string, chainId?: number, refresh: boolean = false): Promise<ReputationScore> {
-    const cacheKey = `${walletAddress}:${chainId || 'all'}`;
+    const normalizedAddress = walletAddress.toLowerCase();
 
-    // Check cache
-    if (!refresh) {
-      const cached = scoreCache.get(cacheKey);
-      if (cached && cached.expiresAt > Date.now()) {
-        return cached.score;
-      }
-    }
-
-    // Validate address
     if (!blockchainService.isValidAddress(walletAddress)) {
       throw new Error('Invalid wallet address');
     }
 
+    if (!refresh) {
+      const cached = await this.getCachedScore(normalizedAddress, chainId);
+      if (cached) {
+        return cached;
+      }
+    }
+
     try {
-      // Request computation from KRNL
       const { score, proof } = await krnlService.computeReputationScore(walletAddress, chainId);
 
-      // Verify proof
       if (proof.proofHash && proof.signature) {
         const verified = await krnlService.verifyProof(proof.proofHash, proof.signature);
         if (!verified) {
@@ -43,20 +41,94 @@ export class ScoreService {
         }
       }
 
-      // Cache the result
-      scoreCache.set(cacheKey, {
-        score,
-        expiresAt: Date.now() + CACHE_TTL,
-      });
+      const enrichedScore = await this.enrichScore(score);
 
-      return score;
+      await Promise.all([
+        this.saveCache(normalizedAddress, chainId, enrichedScore),
+        this.recordCreditCheck(normalizedAddress, chainId, enrichedScore),
+      ]);
+
+      return enrichedScore;
     } catch (error: any) {
-      // Fallback to basic calculation if KRNL fails (development only)
+      logger.warn({ err: error }, 'KRNL computation failed, falling back to basic score');
       if (process.env.NODE_ENV === 'development') {
-        return this.computeBasicScore(walletAddress, chainId);
+        const fallbackScore = await this.computeBasicScore(walletAddress, chainId);
+        const enrichedScore = await this.enrichScore(fallbackScore);
+        await Promise.all([
+          this.saveCache(normalizedAddress, chainId, enrichedScore),
+          this.recordCreditCheck(normalizedAddress, chainId, enrichedScore),
+        ]);
+        return enrichedScore;
       }
       throw error;
     }
+  }
+
+  private async getCachedScore(walletAddress: string, chainId?: number) {
+    const record = await prisma.scoreCache.findUnique({
+      where: {
+        walletAddress_chainId: {
+          walletAddress,
+          chainId: chainId ?? null,
+        },
+      },
+    });
+
+    if (!record) return null;
+
+    if (new Date(record.expiresAt).getTime() < Date.now()) {
+      await prisma.scoreCache.delete({ where: { id: record.id } });
+      return null;
+    }
+
+    return record.score as ReputationScore;
+  }
+
+  private async saveCache(walletAddress: string, chainId: number | undefined, score: ReputationScore) {
+    await prisma.scoreCache.upsert({
+      where: {
+        walletAddress_chainId: {
+          walletAddress,
+          chainId: chainId ?? null,
+        },
+      },
+      create: {
+        walletAddress,
+        chainId,
+        score,
+        expiresAt: new Date(Date.now() + CACHE_TTL_MS),
+      },
+      update: {
+        score,
+        expiresAt: new Date(Date.now() + CACHE_TTL_MS),
+      },
+    });
+  }
+
+  private async recordCreditCheck(walletAddress: string, chainId: number | undefined, score: ReputationScore) {
+    if (!score.creditDecision) return;
+
+    await prisma.creditCheck.create({
+      data: {
+        walletAddress,
+        chainId,
+        computedScore: score.score,
+        creditTier: score.creditDecision.tier,
+        riskLevel: score.creditDecision.risk,
+        metadata: {
+          breakdown: score.breakdown,
+          metadata: score.metadata,
+        },
+      },
+    });
+  }
+
+  private async enrichScore(score: ReputationScore): Promise<ReputationScore> {
+    const decision = creditDecisionEngine.evaluate(score);
+    return {
+      ...score,
+      creditDecision: decision,
+    };
   }
 
   /**
@@ -65,11 +137,12 @@ export class ScoreService {
   private async computeBasicScore(walletAddress: string, chainId?: number): Promise<ReputationScore> {
     const metrics = await blockchainService.getWalletMetrics(walletAddress, chainId || 1);
 
-    // Simple scoring algorithm (placeholder)
+    await this.trackWallet(walletAddress, metrics.totalTransactions || 0, metrics.averageTransactionValue);
+
     const transactionConsistency = Math.min(metrics.totalTransactions || 0, 1000);
-    const repaymentHistory = 500; // Placeholder
-    const stakingBehavior = 500; // Placeholder
-    const governanceParticipation = 500; // Placeholder
+    const repaymentHistory = 500;
+    const stakingBehavior = 500;
+    const governanceParticipation = 500;
 
     const breakdown: ScoreBreakdown = {
       transactionConsistency,
@@ -79,18 +152,17 @@ export class ScoreService {
       riskFactors: [],
     };
 
-    // Weighted average
     const score = Math.round(
       transactionConsistency * 0.4 +
-      repaymentHistory * 0.3 +
-      stakingBehavior * 0.2 +
-      governanceParticipation * 0.1
+        repaymentHistory * 0.3 +
+        stakingBehavior * 0.2 +
+        governanceParticipation * 0.1
     );
 
     return {
       walletAddress,
       score,
-      confidence: 0.5, // Low confidence for basic scores
+      confidence: 0.5,
       lastUpdated: new Date().toISOString(),
       breakdown,
       metadata: {
@@ -105,17 +177,52 @@ export class ScoreService {
    * Get multiple scores
    */
   async getBatchScores(wallets: WalletAddress[]): Promise<ReputationScore[]> {
-    const promises = wallets.map(w => this.getScore(w.address, w.chainId));
+    const promises = wallets.map((w) => this.getScore(w.address, w.chainId));
     return Promise.all(promises);
   }
 
   /**
    * Clear cache for a wallet
    */
-  clearCache(walletAddress: string, chainId?: number): void {
-    const cacheKey = `${walletAddress}:${chainId || 'all'}`;
-    scoreCache.delete(cacheKey);
+  async clearCache(walletAddress: string, chainId?: number): Promise<void> {
+    await prisma.scoreCache.deleteMany({
+      where: { walletAddress: walletAddress.toLowerCase(), chainId: chainId ?? null },
+    });
+  }
+
+  async ingestScore(score: ReputationScore, chainId?: number) {
+    const normalized = score.walletAddress.toLowerCase();
+    const enriched = await this.enrichScore(score);
+    await Promise.all([
+      this.saveCache(normalized, chainId, enriched),
+      this.recordCreditCheck(normalized, chainId, enriched),
+    ]);
+    return enriched;
+  }
+
+  private async trackWallet(address: string, totalTransactions: number, averageValue?: string) {
+    try {
+      await prisma.walletProfile.upsert({
+        where: { walletAddress: address.toLowerCase() },
+        update: {
+          totalTransactions,
+          averageTransactionUsd: averageValue ? parseFloat(averageValue) : undefined,
+        },
+        create: {
+          walletAddress: address.toLowerCase(),
+          totalTransactions,
+          averageTransactionUsd: averageValue ? parseFloat(averageValue) : undefined,
+        },
+      });
+    } catch (err) {
+      logger.warn({ err }, 'Failed to track wallet activity');
+    }
   }
 }
 
 export const scoreService = new ScoreService();
+/**
+ * Score Computation Service
+ * Handles reputation score calculation and caching
+ */
+

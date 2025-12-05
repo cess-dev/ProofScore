@@ -19,6 +19,7 @@ export interface ReputationScore {
     accountAge: number; // days
     chains: string[];
   };
+  creditDecision?: CreditDecision;
 }
 
 export interface ScoreBreakdown {
@@ -53,12 +54,19 @@ export interface ScoreRequest {
 export interface WalletMetrics {
   address: string;
   totalTransactions: number;
-  uniqueProtocols: number;
-  firstSeen: string;
-  lastActivity: string;
   averageTransactionValue: string;
-  transactionFrequency: number; // transactions per day
+  lastActivity: string;
+  uniqueProtocols?: number;
+  firstSeen?: string;
+  transactionFrequency?: number; // transactions per day
   repaymentRate?: number; // 0-1, if applicable
   stakingDuration?: number; // days
   governanceVotes?: number;
+}
+
+export interface CreditDecision {
+  tier: 'A' | 'B' | 'C' | 'D';
+  risk: 'low' | 'medium' | 'high' | 'very_high';
+  recommendedAction: string;
+  rationale: string;
 }

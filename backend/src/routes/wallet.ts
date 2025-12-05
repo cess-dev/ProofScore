@@ -4,6 +4,7 @@
 
 import express, { Request, Response } from 'express';
 import { blockchainService } from '../services/blockchain';
+import { logger } from '../lib/logger';
 
 export const walletRouter = express.Router();
 
@@ -29,7 +30,7 @@ walletRouter.get('/:address/metrics', async (req: Request, res: Response) => {
       data: metrics,
     });
   } catch (error: any) {
-    console.error('Error fetching wallet metrics:', error);
+    logger.error({ err: error }, 'Error fetching wallet metrics');
     res.status(500).json({
       error: 'Failed to fetch wallet metrics',
       message: error.message,

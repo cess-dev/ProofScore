@@ -56,7 +56,25 @@ npm run dev:frontend  # Frontend on http://localhost:3000
 
 Visit `http://localhost:3000` to access the dashboard.
 
-📖 For detailed setup instructions, see [SETUP.md](./SETUP.md)
+📖 For backend-specific commands, see [`backend/README.md`](./backend/README.md)
+
+### Backend API Highlights
+
+- PostgreSQL + Prisma persistence (score cache, credit checks, wallet profiles)
+- Pino logging + Helmet + rate limiting (IP + wallet-based)
+- KRNL webhook ingestion endpoint (`POST /api/krnl/webhook`)
+- Credit decision engine (tiers A–D) included in every score payload
+- OpenAPI docs served at `http://localhost:3001/docs`
+- Dockerfile and `docker-compose.yml` (API + Postgres)
+
+### API Reference
+
+- Human-friendly docs: [`docs/API.md`](./docs/API.md)
+- Swagger UI: `http://localhost:3001/docs`
+- Health: `GET /health`
+- Scores: `GET /api/scores/:address`, `POST /api/scores/batch`
+- Wallet metrics: `GET /api/wallets/:address/metrics`
+- KRNL utilities: `GET /api/krnl/health`, `POST /api/krnl/verify`, `POST /api/krnl/webhook`
 
 ## Features
 

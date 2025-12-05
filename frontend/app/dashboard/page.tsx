@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Wallet, Search, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
+import { Wallet, Search, CheckCircle2, AlertCircle } from 'lucide-react'
 import { ReputationSummary } from '@/components/ReputationSummary'
 import { DetailedMetrics } from '@/components/DetailedMetrics'
 import { ProofVerification } from '@/components/ProofVerification'
-import { generateDummyScore } from '@/lib/dummyData'
+import { api } from '@/lib/api'
 
 export default function Dashboard() {
   const [address, setAddress] = useState('')
@@ -21,28 +21,25 @@ export default function Dashboard() {
 
     // Basic validation (allow ENS names too)
     const isAddress = address.match(/^0x[a-fA-F0-9]{40}$/)
-    const isENS = address.endsWith('.eth') || address.includes('.')
+    const isENS = address.endsWith('.eth')
 
-    if (!isAddress && !isENS) {
-      setError('Please enter a valid Ethereum address or ENS name')
+    if (!isAddress) {
+      setError(isENS ? 'ENS resolution coming soon. Please use a 0x address.' : 'Please enter a valid Ethereum address')
       return
     }
 
     setLoading(true)
     setError(null)
 
-    // Simulate API call with dummy data for now
-    setTimeout(() => {
-      try {
-        const dummyScore = generateDummyScore(address)
-        setScore(dummyScore)
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch score')
-        setScore(null)
-      } finally {
-        setLoading(false)
-      }
-    }, 1500)
+    try {
+      const apiScore = await api.getScore(address)
+      setScore(apiScore)
+    } catch (err: any) {
+      setError(err?.message || 'Failed to fetch score')
+      setScore(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleConnectWallet = async () => {
@@ -54,11 +51,14 @@ export default function Dashboard() {
     // Auto-trigger search after connecting
     if (mockAddress) {
       setLoading(true)
-      setTimeout(() => {
-        const dummyScore = generateDummyScore(mockAddress)
-        setScore(dummyScore)
+      try {
+        const apiScore = await api.getScore(mockAddress)
+        setScore(apiScore)
+      } catch (err: any) {
+        setError(err?.message || 'Failed to fetch score')
+      } finally {
         setLoading(false)
-      }, 1500)
+      }
     }
   }
 

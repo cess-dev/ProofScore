@@ -109,6 +109,22 @@ export function ReputationSummary({ score }: ReputationSummaryProps) {
           />
         </div>
       </div>
+
+      {score.creditDecision && (
+        <div className="mt-6 bg-primary/5 border border-primary/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-primary font-semibold">Credit Tier</div>
+              <div className="text-2xl font-bold text-secondary font-display">
+                {score.creditDecision.tier} <span className="text-sm text-gray-600">({score.creditDecision.risk} risk)</span>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600 max-w-sm text-right">
+              {score.creditDecision.recommendedAction}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

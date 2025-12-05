@@ -36,6 +36,12 @@ export interface ReputationScore {
     accountAge: number;
     chains: string[];
   };
+  creditDecision?: {
+    tier: string;
+    risk: string;
+    recommendedAction: string;
+    rationale: string;
+  };
 }
 
 export const api = {

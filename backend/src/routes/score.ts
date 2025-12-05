@@ -5,6 +5,8 @@
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
 import { scoreService } from '../services/score';
+import { walletRateLimiter } from '../middleware/rateLimit';
+import { logger } from '../lib/logger';
 
 export const scoreRouter = express.Router();
 
@@ -18,7 +20,7 @@ const ScoreRequestSchema = z.object({
  * GET /api/scores/:address
  * Get reputation score for a wallet
  */
-scoreRouter.get('/:address', async (req: Request, res: Response) => {
+scoreRouter.get('/:address', walletRateLimiter, async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
     const chainId = req.query.chainId ? parseInt(req.query.chainId as string) : undefined;
@@ -44,7 +46,7 @@ scoreRouter.get('/:address', async (req: Request, res: Response) => {
       data: score,
     });
   } catch (error: any) {
-    console.error('Error fetching score:', error);
+    logger.error({ err: error }, 'Error fetching score');
     res.status(500).json({
       error: 'Failed to fetch score',
       message: error.message,
@@ -56,7 +58,7 @@ scoreRouter.get('/:address', async (req: Request, res: Response) => {
  * POST /api/scores/batch
  * Get scores for multiple wallets
  */
-scoreRouter.post('/batch', async (req: Request, res: Response) => {
+scoreRouter.post('/batch', walletRateLimiter, async (req: Request, res: Response) => {
   try {
     const { wallets } = req.body;
 
@@ -82,7 +84,7 @@ scoreRouter.post('/batch', async (req: Request, res: Response) => {
       count: scores.length,
     });
   } catch (error: any) {
-    console.error('Error fetching batch scores:', error);
+    logger.error({ err: error }, 'Error fetching batch scores');
     res.status(500).json({
       error: 'Failed to fetch batch scores',
       message: error.message,
@@ -94,12 +96,12 @@ scoreRouter.post('/batch', async (req: Request, res: Response) => {
  * DELETE /api/scores/:address/cache
  * Clear cached score for a wallet
  */
-scoreRouter.delete('/:address/cache', async (req: Request, res: Response) => {
+scoreRouter.delete('/:address/cache', walletRateLimiter, async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
     const chainId = req.query.chainId ? parseInt(req.query.chainId as string) : undefined;
 
-    scoreService.clearCache(address, chainId);
+    await scoreService.clearCache(address, chainId);
 
     res.json({
       success: true,
