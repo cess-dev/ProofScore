@@ -28,8 +28,8 @@ app.use(globalRateLimiter);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'proofscore-api' });
+import type { Request, Response } from 'express';
+app.get('/health', (req: Request, res: Response) => {
 });
 
 // API Routes

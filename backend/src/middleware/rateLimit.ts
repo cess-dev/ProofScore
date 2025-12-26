@@ -15,7 +15,9 @@ export const walletRateLimiter = rateLimit({
   max: config.WALLET_RATE_LIMIT_MAX_REQUESTS,
   keyGenerator: (req: Request) => {
     const wallet = req.params.address || (req.body?.walletAddress as string) || req.query.address;
-    return wallet ? wallet.toString().toLowerCase() : req.ip;
+    return wallet
+  ? wallet.toString().toLowerCase()
+  : req.ip ?? 'unknown';
   },
   standardHeaders: true,
   legacyHeaders: false,

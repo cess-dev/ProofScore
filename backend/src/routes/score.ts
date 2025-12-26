@@ -12,7 +12,7 @@ export const scoreRouter = express.Router();
 
 const ScoreRequestSchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
-  chainId: z.number().int().positive().optional(),
+  chainId: z.number().int().positive(),
   refresh: z.boolean().optional(),
 });
 
@@ -39,7 +39,13 @@ scoreRouter.get('/:address', walletRateLimiter, async (req: Request, res: Respon
       });
     }
 
-    const score = await scoreService.getScore(address, chainId, refresh);
+    const resolvedChainId = chainId ?? 1;
+    const score = await scoreService.getScore(
+    address,
+    resolvedChainId,
+    refresh
+    );
+
 
     res.json({
       success: true,
@@ -101,7 +107,9 @@ scoreRouter.delete('/:address/cache', walletRateLimiter, async (req: Request, re
     const { address } = req.params;
     const chainId = req.query.chainId ? parseInt(req.query.chainId as string) : undefined;
 
-    await scoreService.clearCache(address, chainId);
+    const resolvedChainId = chainId ?? 1;
+    await scoreService.clearCache(address, resolvedChainId);
+
 
     res.json({
       success: true,
