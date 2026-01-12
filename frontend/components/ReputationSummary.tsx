@@ -12,6 +12,29 @@ interface ReputationSummaryProps {
     confidence: number
     lastUpdated: string
     proofHash?: string
+    breakdown?: {
+      transactionConsistency: number;
+      repaymentHistory: number;
+      stakingBehavior: number;
+      governanceParticipation: number;
+      riskFactors: Array<{
+        type: string;
+        severity: string;
+        description: string;
+        detectedAt: string;
+      }>;
+    };
+    metadata?: {
+      totalTransactions: number;
+      accountAge: number;
+      chains: string[];
+    };
+    creditDecision?: {
+      tier: string;
+      risk: string;
+      recommendedAction: string;
+      rationale: string;
+    };
   }
 }
 

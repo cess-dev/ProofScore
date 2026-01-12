@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Wallet, Search, CheckCircle2, AlertCircle } from 'lucide-react'
 import { ReputationSummary } from '@/components/ReputationSummary'
 import { DetailedMetrics } from '@/components/DetailedMetrics'
@@ -14,17 +15,27 @@ export default function Dashboard() {
   const [score, setScore] = useState<any>(null)
 
   const handleSearch = async () => {
-    if (!address.trim()) {
+    const trimmedAddress = address.trim()
+    
+    if (!trimmedAddress) {
       setError('Please enter a wallet address or ENS name')
       return
     }
 
+    // Normalize address (remove whitespace)
+    const normalizedAddress = trimmedAddress.replace(/\s/g, '')
+    
     // Basic validation (allow ENS names too)
-    const isAddress = address.match(/^0x[a-fA-F0-9]{40}$/)
-    const isENS = address.endsWith('.eth')
+    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(normalizedAddress)
+    const isENS = normalizedAddress.endsWith('.eth') && normalizedAddress.length > 4
 
-    if (!isAddress) {
-      setError(isENS ? 'ENS resolution coming soon. Please use a 0x address.' : 'Please enter a valid Ethereum address')
+    if (!isAddress && !isENS) {
+      setError('Please enter a valid Ethereum address (0x...) or ENS name (.eth)')
+      return
+    }
+
+    if (isENS) {
+      setError('ENS resolution coming soon. Please use a 0x address.')
       return
     }
 
@@ -32,7 +43,7 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      const apiScore = await api.getScore(address)
+      const apiScore = await api.getScore(normalizedAddress)
       setScore(apiScore)
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch score')
@@ -44,21 +55,28 @@ export default function Dashboard() {
 
   const handleConnectWallet = async () => {
     // TODO: Implement wallet connection (MetaMask, WalletConnect, etc.)
-    // For now, we'll simulate connecting and auto-filling
-    const mockAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
-    setAddress(mockAddress)
+    // For now, we'll show a modal to select from mock wallets
+    const mockWallets = [
+      { address: '0x742D35cC6634c0532925A3b844bc9E7595F0bebE', name: 'Primary Wallet', balance: '0.5 ETH' },
+      { address: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', name: 'Vitalik Wallet', balance: '12000 ETH' },
+      { address: '0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326', name: 'Uniswap Router', balance: '1.2M ETH' },
+    ];
+    
+    // For now, just select the first wallet
+    const selectedWallet = mockWallets[0];
+    setAddress(selectedWallet.address);
+    setError(null);
     
     // Auto-trigger search after connecting
-    if (mockAddress) {
-      setLoading(true)
-      try {
-        const apiScore = await api.getScore(mockAddress)
-        setScore(apiScore)
-      } catch (err: any) {
-        setError(err?.message || 'Failed to fetch score')
-      } finally {
-        setLoading(false)
-      }
+    setLoading(true);
+    try {
+      const apiScore = await api.getScore(selectedWallet.address);
+      setScore(apiScore);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to fetch score');
+      setScore(null);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -75,6 +93,28 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xl font-bold text-secondary font-display">ProofScore</span>
               </div>
+            </div>
+            <div className="flex items-center space-x-6">
+              <Link href="/"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                Home
+              </Link>
+              <Link href="/about"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                About
+              </Link>
+              <Link href="/dashboard"
+                className="px-4 py-2 text-sm font-medium text-primary-600 font-semibold"
+              >
+                Dashboard
+              </Link>
+              <Link href="/settings"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                Settings
+              </Link>
             </div>
           </div>
         </div>
@@ -94,10 +134,14 @@ export default function Dashboard() {
                   id="address"
                   type="text"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value)
+                    // Clear error when user starts typing
+                    if (error) setError(null)
+                  }}
                   onKeyPress={(e) => e.key === 'Enter' && !loading && handleSearch()}
-                  placeholder="0x... or name.eth"
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none"
+                  placeholder="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none font-mono text-sm"
                   disabled={loading}
                 />
               </div>

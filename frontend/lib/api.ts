@@ -4,14 +4,47 @@
 
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Use relative URLs - Next.js rewrites will proxy to backend
+// This works in both browser and server-side
+const API_URL = '/api';
 
 const client = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 });
+
+// Add request interceptor for better error handling
+client.interceptors.request.use(
+  (config) => {
+    // Remove leading /api if present (since baseURL already has it)
+    if (config.url?.startsWith('/api/')) {
+      config.url = config.url.replace('/api', '');
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for better error messages
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Check if it's a connection/timeout error
+    if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      error.message = 'Backend server is not running. Please start it with: cd backend && npm run dev';
+    } else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      error.message = 'Request timed out. Make sure the backend server is running on port 3001. Start it with: cd backend && npm run dev';
+    } else if (error.response?.status === 404 && error.config?.url?.includes('/api/')) {
+      error.message = 'Backend endpoint not found. Make sure the backend server is running on port 3001.';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface ReputationScore {
   walletAddress: string;
@@ -58,7 +91,7 @@ export const api = {
     if (refresh) params.append('refresh', 'true');
 
     const response = await client.get<{ success: boolean; data: ReputationScore }>(
-      `/api/scores/${address}${params.toString() ? `?${params.toString()}` : ''}`
+      `/scores/${address}${params.toString() ? `?${params.toString()}` : ''}`
     );
 
     if (!response.data.success) {
@@ -73,7 +106,7 @@ export const api = {
    */
   async getBatchScores(wallets: Array<{ address: string; chainId?: number }>): Promise<ReputationScore[]> {
     const response = await client.post<{ success: boolean; data: ReputationScore[] }>(
-      '/api/scores/batch',
+      '/scores/batch',
       { wallets }
     );
 
@@ -92,7 +125,7 @@ export const api = {
     if (chainId) params.append('chainId', chainId.toString());
 
     const response = await client.get<{ success: boolean; data: any }>(
-      `/api/wallets/${address}/metrics${params.toString() ? `?${params.toString()}` : ''}`
+      `/wallets/${address}/metrics${params.toString() ? `?${params.toString()}` : ''}`
     );
 
     return response.data.data;

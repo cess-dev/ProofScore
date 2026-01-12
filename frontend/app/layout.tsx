@@ -1,20 +1,12 @@
 import type { Metadata } from 'next'
-import { Inter, Poppins } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
-const poppins = Poppins({ 
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-})
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ProofScore - Verifiable On-chain Reputation',
-  description: 'A decentralized reputation scoring protocol built on KRNL middleware',
+  title: 'ProofScore | Verifiable On-chain Reputation',
+  description: 'Cryptographically proven reputation scores for wallets, enabling trust in DeFi, DAOs, and decentralized marketplaces.',
 }
 
 export default function RootLayout({
@@ -24,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${poppins.variable} font-sans`}>{children}</body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
