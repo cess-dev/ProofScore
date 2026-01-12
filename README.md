@@ -54,7 +54,7 @@ Create environment files:
 PORT=3001
 NODE_ENV=development
 DATABASE_URL=postgresql://proofscore:proofscore@localhost:5432/proofscore
-KRNL_API_URL=https://api.krnl.io
+KRNL_API_URL=https://node.krnl.xyz
 KRNL_API_KEY=your-krnl-api-key-here
 RPC_URL=https://ethereum-rpc.publicnode.com
 RPC_URL_FALLBACK=https://eth-mainnet.g.alchemy.com/v2/your-alchemy-key
@@ -138,11 +138,11 @@ https://node.krnl.xyz
 
 ## Development Phases
 
-- ✅ Phase 1: Core infrastructure and blockchain integration
-- ✅ Phase 2: Off-chain computation engine for data aggregation and scoring
-- ✅ Phase 3: RESTful API and developer documentation for integrations
-- ✅ Phase 4: Demo dashboard and open-source repository release
-- ✅ Phase 5: User management, settings, and enhanced UI/UX
+- Phase 1: Core infrastructure and blockchain integration
+- Phase 2: Off-chain computation engine for data aggregation and scoring
+- Phase 3: RESTful API and developer documentation for integrations
+- Phase 4: Demo dashboard and open-source repository release
+- Phase 5: User management, settings, and enhanced UI/UX
 
 ## License
 
