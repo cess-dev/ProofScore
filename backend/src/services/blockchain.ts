@@ -15,37 +15,52 @@ export class BlockchainService {
   }
 
   private initializeProviders() {
-    // Mainnet
-    if (process.env.MAINNET_RPC_URL) {
-      this.providers.set(1, new ethers.JsonRpcProvider(process.env.MAINNET_RPC_URL));
+    // This method intentionally left empty
+    // Providers are initialized on-demand in getProvider
+  }
+
+  private ensureProvider(chainId: number): ethers.JsonRpcProvider | null {
+    // Check if provider already exists
+    if (this.providers.has(chainId)) {
+      return this.providers.get(chainId) || null;
     }
 
-    // Arbitrum
-    if (process.env.ARBITRUM_RPC_URL) {
-      this.providers.set(42161, new ethers.JsonRpcProvider(process.env.ARBITRUM_RPC_URL));
+    // Initialize provider based on chainId and environment variables
+    let rpcUrl: string | undefined;
+    
+    switch (chainId) {
+      case 1: // Ethereum Mainnet
+        rpcUrl = process.env.MAINNET_RPC_URL;
+        break;
+      case 42161: // Arbitrum
+        rpcUrl = process.env.ARBITRUM_RPC_URL;
+        break;
+      case 8453: // Base
+        rpcUrl = process.env.BASE_RPC_URL;
+        break;
+      case 137: // Polygon
+        rpcUrl = process.env.POLYGON_RPC_URL;
+        break;
+      default:
+        // For any other chain, use RPC_URL as fallback
+        rpcUrl = process.env.RPC_URL;
+        break;
     }
-
-    // Base
-    if (process.env.BASE_RPC_URL) {
-      this.providers.set(8453, new ethers.JsonRpcProvider(process.env.BASE_RPC_URL));
+    
+    if (rpcUrl) {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      this.providers.set(chainId, provider);
+      return provider;
     }
-
-    // Polygon
-    if (process.env.POLYGON_RPC_URL) {
-      this.providers.set(137, new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL));
-    }
-
-    // Default fallback
-    if (process.env.RPC_URL && this.providers.size === 0) {
-      this.providers.set(1, new ethers.JsonRpcProvider(process.env.RPC_URL));
-    }
+    
+    return null;
   }
 
   /**
    * Get provider for a specific chain
    */
   getProvider(chainId: number = 1): ethers.JsonRpcProvider | null {
-    return this.providers.get(chainId) || null;
+    return this.ensureProvider(chainId);
   }
 
   /**
@@ -67,7 +82,15 @@ export class BlockchainService {
     }
 
     if (!this.isValidAddress(address)) {
-      throw new Error('Invalid wallet address');
+      // Check if it's an invalid checksum
+      const lowerAddress = address.toLowerCase();
+      if (lowerAddress.startsWith('0x') && lowerAddress.length === 42) {
+        // May be invalid checksum
+        throw new Error('Invalid Ethereum address checksum format');
+      } else {
+        // Invalid format entirely
+        throw new Error('Invalid Ethereum address format');
+      }
     }
 
     try {
@@ -85,7 +108,16 @@ export class BlockchainService {
         lastActivity: new Date().toISOString(), // Would come from indexer
       };
     } catch (error: any) {
-      throw new Error(`Failed to fetch wallet metrics: ${error.message}`);
+      console.error('Blockchain service error details:', error);
+      console.error('Provider details:');
+      // Provide more user-friendly error messages
+      if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+        throw new Error('Unable to connect to blockchain provider. This may be due to network connectivity issues or rate limiting. Please try again later.');
+      } else if (error.message.includes('Invalid')) {
+        throw new Error(`Invalid wallet address: ${error.message}`);
+      } else {
+        throw new Error(`Failed to fetch wallet metrics: ${error.message}. This could be due to network issues or the address having no on-chain activity.`);
+      }
     }
   }
 

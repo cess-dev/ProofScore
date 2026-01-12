@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // DATABASE_URL is optional - backend works without database in dev mode
 }
 
 model ScoreCache {

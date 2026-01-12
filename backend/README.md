@@ -1,54 +1,37 @@
-## ProofScore Backend API
+# ProofScore Backend API
 
-### Prerequisites
+The backend API server for ProofScore - a verifiable on-chain reputation engine.
 
-- Node.js >= 18
-- PostgreSQL (local or via Docker)
+## Features
 
-### Environment
+- RESTful API for reputation scoring
+- PostgreSQL database with Prisma ORM
+- KRNL middleware integration
+- Credit decision engine
+- Rate limiting and security measures
 
-Create `backend/.env` with:
+## Environment Variables
 
-```
-NODE_ENV=development
-PORT=3001
-DATABASE_URL=postgresql://proofscore:proofscore@localhost:5432/proofscore
-KRNL_API_URL=https://api.krnl.io
-KRNL_API_KEY=your_krnl_api_key
-KRNL_WEBHOOK_SECRET=replace_me
-MAINNET_RPC_URL=https://mainnet.infura.io/v3/your_key
-RATE_LIMIT_WINDOW_MINUTES=1
-RATE_LIMIT_MAX_REQUESTS=60
-WALLET_RATE_LIMIT_WINDOW_MINUTES=5
-WALLET_RATE_LIMIT_MAX_REQUESTS=10
-SCORE_CACHE_TTL_MINUTES=60
-```
+Copy `.env.example` to `.env` and configure:
 
-### Setup
+- `PORT`: API server port (default: 3001)
+- `DATABASE_URL`: PostgreSQL connection string
+- `KRNL_API_KEY`: KRNL API key
+- `RPC_URL`: Blockchain RPC endpoint
 
-```
-cd backend
-npm install
-npx prisma migrate dev
-npm run dev
-```
+## Scripts
 
-- API: `http://localhost:3001`
-- Docs: `http://localhost:3001/docs`
+- `npm run dev`: Start development server
+- `npm run build`: Build for production
+- `npm run start`: Start production server
+- `npm run setup`: Install dependencies and generate Prisma client
+- `npm run test`: Run tests
 
-### Scripts
+## Endpoints
 
-- `npm run dev` – watch mode
-- `npm run build` – compile TypeScript
-- `npm start` – run compiled server
-- `npm run prisma:generate` / `npm run prisma:migrate`
-- `npm test`
-
-### Docker
-
-```
-docker-compose up --build
-```
-
-This starts PostgreSQL (`db`) and the backend service.
-
+- `GET /health`: Health check
+- `GET /docs`: API documentation (Swagger UI)
+- `GET /api/scores/:address`: Get reputation score for wallet
+- `POST /api/scores/batch`: Get scores for multiple wallets
+- `GET /api/wallets/:address/metrics`: Get wallet metrics
+- `POST /api/krnl/webhook`: KRNL webhook endpoint

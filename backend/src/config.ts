@@ -6,9 +6,9 @@ dotenv.config();
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3001),
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL'),
+  DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL').optional().default('postgresql://user:password@localhost:5432/proofscore'),
   KRNL_API_URL: z.string().url('KRNL_API_URL must be a valid URL').default('https://api.krnl.io'),
-  KRNL_API_KEY: z.string().min(1, 'KRNL_API_KEY is required'),
+  KRNL_API_KEY: z.string().min(1, 'KRNL_API_KEY is required').optional().default('demo-key'),
   KRNL_WEBHOOK_SECRET: z.string().optional(),
   RPC_URL: z.string().optional(),
   MAINNET_RPC_URL: z.string().optional(),
